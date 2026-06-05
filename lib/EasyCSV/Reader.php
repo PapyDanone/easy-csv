@@ -66,10 +66,6 @@ class Reader extends AbstractBase
         $row     = $this->getCurrentRow();
         $isEmpty = $this->rowIsEmpty($row);
 
-        if ($this->isEof() === false) {
-            $this->getHandle()->next();
-        }
-
         if ($isEmpty === false) {
             return $this->headers !== false && is_array($this->headers) ? array_combine($this->headers, $row) : $row;
         }
@@ -130,19 +126,22 @@ class Reader extends AbstractBase
      */
     public function getCurrentRow() : array
     {
-        $current = $this->getHandle()->current();
+        $current = $this->getHandle()->fgetcsv($this->delimiter, $this->enclosure);
 
-        if (! is_string($current)) {
+        if ($current === false || $current === [null]) {
             return [];
         }
 
-        if ($this->isNeedBOMRemove && mb_strpos($current, "\xEF\xBB\xBF", 0, 'utf-8') === 0) {
+        if ($this->isNeedBOMRemove
+            && isset($current[0])
+            && is_string($current[0])
+            && mb_strpos($current[0], "\xEF\xBB\xBF", 0, 'utf-8') === 0
+        ) {
             $this->isNeedBOMRemove = false;
-
-            $current = str_replace("\xEF\xBB\xBF", '', $current);
+            $current[0] = str_replace("\xEF\xBB\xBF", '', $current[0]);
         }
 
-        return str_getcsv($current, $this->delimiter, $this->enclosure);
+        return $current;
     }
 
     public function advanceTo(int $lineNumber) : void
